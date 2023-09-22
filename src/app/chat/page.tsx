@@ -1,45 +1,62 @@
 'use client';
-import { UserButton } from '@clerk/nextjs'
-import React from 'react'
+import { UserButton, useUser } from '@clerk/nextjs'
+import React, { useCallback, useEffect, useState } from 'react'
 import { StreamChat } from "stream-chat"
-import { Chat, Channel, Window, ChannelHeader, MessageList, MessageInput, Thread } from "stream-chat-react"
+import { Chat, Channel, Window, ChannelHeader, MessageList, MessageInput, Thread, LoadingIndicator, ChannelList } from "stream-chat-react"
+import useInitializeChatClient from './useInitializeChatClient';
+import ManuBar from './MenuBar';
+import ChatSidebar from './ChatSidebar';
+import ChatChannel from './ChatChannel';
+import { Menu, X } from "lucide-react";
+import useWindowSize from '@/hooks/useWindowSize';
+import { mdBrackpoint } from '@/utils/tailwind';
 
-const userId = "user_2VRlRxLMfjHIbzhlDZY5wsEXqKR"
+export default function ChatPage() {
+  const chatClient = useInitializeChatClient();
+  const { user } = useUser();
 
-const chatClient = StreamChat.getInstance(
-  process.env.NEXT_PUBLIC_STREAM_KEY!
-)
+  const windowSize = useWindowSize();
+  const isLargeScreen = windowSize.width >= mdBrackpoint;
 
-chatClient.connectUser(
-  {
-    id: userId,
-    name: "Smriti"
-  },
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlcl8yVlJsUnhMTWZqSEliemhsRFpZNXdzRVhxS1IifQ.l7MG8c3qW5v14HNVSwUAOsF0tVoY4JjShBl1zmb7urA"
-)
-
-const channel = chatClient.channel("messaging", "channel_1", {
-  name: "Channel no.1",
-  members: [userId],
-});
+  useEffect(() => {
+    if (windowSize.width >= mdBrackpoint) setChatSidebarOpen(false)
+  }, [windowSize.width])
 
 
-function page() {
+  const handelSidebarClose = useCallback(() => {
+    setChatSidebarOpen(false);
+  }, [])
+
+  const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
+  if (!chatClient || !user) {
+    return (
+      <div className='h-screen item-center justify-center'>
+        <LoadingIndicator size={40} />
+      </div>
+    )
+  }
   return (
-    <div>
-      <Chat client={chatClient}>
-        <Channel channel={channel}>
-          {/* <UserButton afterSignOutUrl='/' /> */}
-          <Window>
-            <ChannelHeader />
-            <MessageList />
-            <MessageInput />
-          </Window>
-          <Thread />
-        </Channel>
-      </Chat>
+    <div className="h-screen bg-gray-100 xl:px-20 xl:py-8">
+      <div className="max-w-[1600px] min-w-[350px] h-full shadow-sm m-auto flex flex-col">
+        <Chat client={chatClient}>
+          <div className="flex justify-center border-b-[#DBDDE1] p-3 md:hidden">
+            <button onClick={() => setChatSidebarOpen(oldValue => !chatSidebarOpen)}>
+              {!chatSidebarOpen ? (
+                <span className='flex item-center gap-1'>
+                  <Menu />Menu
+                </span>
+              ) : (
+                <X />
+              )}
+            </button>
+          </div>
+          <div className="flex flex-row h-full overflow-y-auto">
+            <ChatSidebar user={user} show={isLargeScreen || chatSidebarOpen} onClose={handelSidebarClose} />
+            <ChatChannel show={isLargeScreen || !chatSidebarOpen} hideChannelOnThread={!isLargeScreen} />
+            {/* <UserButton afterSignOutUrl='/' /> */}
+          </div>
+        </Chat>
+      </div>
     </div>
   )
 }
-
-export default page
